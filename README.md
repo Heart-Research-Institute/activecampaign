@@ -22,7 +22,7 @@ This repository contains Python code for automating the import of contact data i
 
 To install necessary packages aside from the ones available by default, run:
 ```bash
-pip install pandas numpy requests joblib azure-identity azure-keyvault-secrets shareplum
+pip install pandas numpy xlrd pytz requests joblib azure-identity azure-keyvault-secrets shareplum
 ```
 
 ## Configuration
