@@ -322,15 +322,15 @@ df_contacts_unsubbed.to_csv(".csv", index = False)
 # Log script execution metadata & upload to Fundraising SharePoint under ActiveCampaign Automation folder
 df_logs = pd.DataFrame(
     {
-        "executed_at_AEST": start_time.strftime("%Y-%m-%d %H:%M:%S.%f %Z%z"),
-        "duration_in_mins": round((datetime.datetime.now() \
-                                   .astimezone(pytz.timezone("Australia/Sydney")) \
-                                   - start_time).total_seconds() / 60, 1),
-        "num_contacts_welcome": len(to_import_from_JO),
-        "num_contacts_all_segments": len(to_import_from_NO),
-        "date_range_bounced_unsubbed_contacts": f"{start_date}_{end_date}",
-        "num_contacts_bounced": len(df_contacts_bounced),
-        "num_contacts_unsubbed": len(df_contacts_unsubbed)
+        "executed_at_AEST": [start_time.strftime("%Y-%m-%d %H:%M:%S.%f %Z%z")],
+        "duration_in_mins": [round((datetime.datetime.now() \
+                                    .astimezone(pytz.timezone("Australia/Sydney")) \
+                                    - start_time).total_seconds() / 60, 1)],
+        "num_contacts_welcome": [len(to_import_from_JO)],
+        "num_contacts_all_segments": [len(to_import_from_NO)],
+        "date_range_bounced_unsubbed_contacts": [f"{start_date}_{end_date}"],
+        "num_contacts_bounced": [len(df_contacts_bounced)],
+        "num_contacts_unsubbed": [len(df_contacts_unsubbed)]
     }
 )
 # If log file exists, append newest log data & update
