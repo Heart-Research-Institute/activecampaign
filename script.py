@@ -6,17 +6,18 @@ import json
 import glob
 import sys
 import os
+from io import StringIO
 import time
 import datetime
+import pytz
 from joblib import (Parallel, delayed)
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from shareplum import (Site, Office365)
 from shareplum.site import Version
-# !pip install xlrd
-# !pip install azure-identity
-# !pip install azure-keyvault-secrets
-# !pip install shareplum
+
+# Init script execution time for logging purposes
+start_time = datetime.datetime.now().astimezone(pytz.timezone("Australia/Sydney"))
 
 # Limit Intel MKL and OpenMP to single-threaded execution to prevent thread oversubscription
 # Oversubscription can cause code execution for parallelization to be stuck
@@ -37,12 +38,15 @@ password_sharepoint = client_vault.get_secret("password_SharePoint").value
 url_sharepoint = "https://heartresearchinstitute.sharepoint.com"
 url_sharepoint_folder_from_JO = ""
 url_sharepoint_folder_from_NO = ""
+url_sharepoint_log_dump = ""
 auth_sharepoint = Office365(url_sharepoint, username = username_sharepoint, password = password_sharepoint) \
                   .GetCookies()
 folder_sharepoint_from_JO = Site(url_sharepoint, version = Version.v365, authcookie = auth_sharepoint) \
                             .Folder(url_sharepoint_folder_from_JO)
 folder_sharepoint_from_NO = Site(url_sharepoint, version = Version.v365, authcookie = auth_sharepoint) \
                             .Folder(url_sharepoint_folder_from_NO)
+folder_sharepoint_log_dump = Site(url_sharepoint, version = Version.v365, authcookie = auth_sharepoint) \
+                             .Folder(url_sharepoint_log_dump)
 paths_sharepoint_from_JO = glob.glob(f"{url_sharepoint}/{url_sharepoint_folder_from_JO}/*")
 paths_sharepoint_from_NO = glob.glob(f"{url_sharepoint}/{url_sharepoint_folder_from_NO}/*")
 # paths_from_JO = glob.glob("./ActiveCampaign/JO/*")
@@ -314,3 +318,32 @@ df_contacts_unsubbed = df_contacts_unsubbed.drop(labels = "id", axis = 1).rename
                                                                                             "cdate": "Subscribed Date",
                                                                                             "udate": "Unsubscribed Date"})
 df_contacts_unsubbed.to_csv(".csv", index = False)
+
+# Log script execution metadata & upload to Fundraising SharePoint under ActiveCampaign Automation folder
+df_logs = pd.DataFrame(
+    {
+        "executed_at_AEST": start_time.strftime("%Y-%m-%d %H:%M:%S.%f %Z%z"),
+        "duration_in_mins": round((datetime.datetime.now() \
+                                   .astimezone(pytz.timezone("Australia/Sydney")) \
+                                   - start_time).total_seconds() / 60, 1),
+        "num_contacts_welcome": len(to_import_from_JO),
+        "num_contacts_all_segments": len(to_import_from_NO),
+        "date_range_bounced_unsubbed_contacts": f"{start_date}_{end_date}",
+        "num_contacts_bounced": len(df_contacts_bounced),
+        "num_contacts_unsubbed": len(df_contacts_unsubbed)
+    }
+)
+# If log file exists, append newest log data & update
+if any(i["Name"] == "runtime_logs.csv" for i in folder_sharepoint_log_dump.files()):
+    _df_logs = pd.read_csv(StringIO(folder_sharepoint_log_dump.get_file("runtime_logs.csv").decode("utf-8")))
+    _df_logs.append(df_logs, ignore_index = True)
+    buffer = StringIO()
+    _df_logs.to_csv(buffer, index = False, header = True)
+    df_logs_to_upload = buffer.getvalue()
+    folder_sharepoint_log_dump.upload_file(df_logs_to_upload, "runtime_logs.csv")
+# Otherwise create a new log file & upload for future use
+else:
+    buffer = StringIO()
+    df_logs.to_csv(buffer, index = False, header = True)
+    df_logs_to_upload = buffer.getvalue()
+    folder_sharepoint_log_dump.upload_file(df_logs_to_upload, "runtime_logs.csv")
