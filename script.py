@@ -6,7 +6,7 @@ import json
 import glob
 import sys
 import os
-from io import StringIO
+from io import (StringIO, BytesIO)
 import time
 import datetime
 import pytz
@@ -36,19 +36,25 @@ password_sharepoint = client_vault.get_secret("password_SharePoint").value
 
 # Init SharePoint path dirs to process the relevant files 
 url_sharepoint = "https://heartresearchinstitute.sharepoint.com"
-url_sharepoint_folder_from_JO = ""
-url_sharepoint_folder_from_NO = ""
-url_sharepoint_log_dump = ""
+site_sharepoint_from_JO = ""
+site_sharepoint_from_NO = ""
+site_sharepoint_log_dump = ""
+path_sharepoint_folder_from_JO = ""
+path_sharepoint_folder_from_NO = ""
+path_sharepoint_log_dump = ""
 auth_sharepoint = Office365(url_sharepoint, username = username_sharepoint, password = password_sharepoint) \
                   .GetCookies()
-folder_sharepoint_from_JO = Site(url_sharepoint, version = Version.v365, authcookie = auth_sharepoint) \
-                            .Folder(url_sharepoint_folder_from_JO)
-folder_sharepoint_from_NO = Site(url_sharepoint, version = Version.v365, authcookie = auth_sharepoint) \
-                            .Folder(url_sharepoint_folder_from_NO)
-folder_sharepoint_log_dump = Site(url_sharepoint, version = Version.v365, authcookie = auth_sharepoint) \
-                             .Folder(url_sharepoint_log_dump)
-paths_sharepoint_from_JO = glob.glob(f"{url_sharepoint}/{url_sharepoint_folder_from_JO}/*")
-paths_sharepoint_from_NO = glob.glob(f"{url_sharepoint}/{url_sharepoint_folder_from_NO}/*")
+folder_sharepoint_from_JO = Site(f"{url_sharepoint}/{site_sharepoint_from_JO}", version = Version.v365, 
+                                 authcookie = auth_sharepoint) \
+                            .Folder(path_sharepoint_folder_from_JO)
+folder_sharepoint_from_NO = Site(f"{url_sharepoint}/{site_sharepoint_from_NO}", version = Version.v365, 
+                                 authcookie = auth_sharepoint) \
+                            .Folder(path_sharepoint_folder_from_NO)
+folder_sharepoint_log_dump = Site(f"{url_sharepoint}/{site_sharepoint_log_dump}", version = Version.v365, 
+                                  authcookie = auth_sharepoint) \
+                             .Folder(path_sharepoint_folder_log_dump)
+files_sharepoint_from_JO = folder_sharepoint_from_JO.files
+files_sharepoint_from_NO = folder_sharepoint_from_NO.files
 # paths_from_JO = glob.glob("./ActiveCampaign/JO/*")
 # paths_from_NO = glob.glob("./ActiveCampaign/NO/*")
 
@@ -155,19 +161,19 @@ def process_cons_id(iterator):
 
 # Process welcome mailing list files
 to_import_from_JO = list()
-for i in paths_from_JO:
-    try:
-        df = pd.read_excel(i)
-    except:
-        df = pd.read_csv(i)
+for i in files_sharepoint_from_JO:
+    if (i["Name"].endswith(".xlsx")) or (i["Name"].endswith(".xls")):
+        df = pd.read_excel(BytesIO(folder_sharepoint_from_JO.get_file(i).decode("utf-8")))
+    if i["Name"].endswith(".csv"):
+        df = pd.read_csv(StringIO(folder_sharepoint_from_JO.get_file(i).decode("utf-8")))
     df["DOB"] = df["DOB"].astype("str")
     df["1stDebitDate"] = df["1stDebitDate"].astype("str")
     df["listid"] = np.select([
-                                 "Welcome" in paths[0].split("\\")[-1].split(".")[0], # Donor Series - Welcome - Australia
-                                 "1stWeekEmail" in paths[0].split("\\")[-1].split(".")[0], # Donor Series - Australia
-                                 "2ndMonthEmail" in i.split("\\")[-1].split(".")[0], # Donor Series - Month 2 - Australia   
-                                 "3rdMonthEmail" in i.split("\\")[-1].split(".")[0], # Donor Series - Month 3 - Australia
-                                 "2YearEmail" in paths[0].split("\\")[-1].split(".")[0], # Donor Series - 2 Years - Australia    
+                                 "Welcome" in i.split(".")[0] # Donor Series - Welcome - Australia
+                                 "1stWeekEmail" in i.split(".")[0] # Donor Series - Australia
+                                 "2ndMonthEmail" in i.split(".")[0] # Donor Series - Month 2 - Australia   
+                                 "3rdMonthEmail" in i.split(".")[0] # Donor Series - Month 3 - Australia
+                                 "2YearEmail" in i.split(".")[0] # Donor Series - 2 Years - Australia    
                              ],
                              [
                                  "71",
@@ -218,18 +224,18 @@ for i in range(len(payload_index) - 1):
 
 # Process contacts for segementation
 to_import_from_NO = list()
-for i in paths_from_NO:
-    try:
-        df = pd.read_excel(i)
-    except:
-        df = pd.read_csv(i)
+for i in files_sharepoint_from_NO:
+    if (i["Name"].endswith(".xlsx")) or (i["Name"].endswith(".xls")):
+        df = pd.read_excel(BytesIO(folder_sharepoint_from_NO.get_file(i).decode("utf-8")))
+    if i["Name"].endswith(".csv"):
+        df = pd.read_csv(StringIO(folder_sharepoint_from_NO.get_file(i).decode("utf-8")))
     df["Constituent Number"] = df["Constituent Number"].astype("str")
     df["listid"] = np.select([
                                  df["Appeal"].str.contains("AU") & df["Package"].str.contains("Active"), # RG Active
                                  df["Appeal"].str.contains("AU") & df["Package"].str.contains("Lapsed"), # RG Lapsed
                                  df["Appeal"].str.contains("AU") & df["Package"].str.contains("Insight"), # SG Insight
                                  df["Appeal"].str.contains("AU") & df["Package"].str.contains("NonInsight"), # SG NonInsight
-                                 # AU Philantrophy
+                                 # AU Philantrophy - currently not in use but still listed just in case 
                                  df["Appeal"].str.contains("NZ") & df["Package"].str.contains("Active"), # NZ RG Active
                                  df["Appeal"].str.contains("NZ") & df["Package"].str.contains("Lapsed"), # NZ RG Lapsed
                                  df["Appeal"].str.contains("NZ") & df["Package"].str.contains("Other"), # Newsletter NZ
@@ -239,7 +245,7 @@ for i in paths_from_NO:
                                  "200",
                                  "236",
                                  "237",
-                                 # "229",
+                                 # "229" - currently not in use but still listed just in case
                                  "256",
                                  "254",
                                  "258"
@@ -252,7 +258,7 @@ for i in paths_from_NO:
                 "first_name": dict_df["First name"][j],
                 "last_name": dict_df["Last name"][j],
                 "tags": [
-                    i.split("\\")[-1].split(".")[0] + "_" + df["Package"][j].split("_")[-1].split("-")[0]
+                    i.split(".")[0] + "_" + df["Package"][j].split("_")[-1].split("-")[0]
                 ],
                 "fields": [                
                     {"id": 2, "value": dict_df["Constituent Number"][j]}, # RE - Constituent ID
