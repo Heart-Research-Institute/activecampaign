@@ -29,7 +29,6 @@ os.environ["MKL_DYNAMIC"] = "FALSE"
 vault_name = ""
 url_vault = f"https://{vault_name}.vault.azure.net/"
 client_vault = SecretClient(vault_url = url_vault, credential = DefaultAzureCredential())
-# api_token_ActiveCampaign = "9ad382ade5dc0847f3ba3a39a8cf058e8f871eb2d224f50260ac00b54b789538f68d8496"
 api_token_ActiveCampaign = client_vault.get_secret("API_TOKEN_ActiveCampaign").value
 username_sharepoint = client_vault.get_secret("username_SharePoint").value
 password_sharepoint = client_vault.get_secret("password_SharePoint").value
@@ -41,7 +40,7 @@ site_sharepoint_from_NO = ""
 site_sharepoint_log_dump = ""
 path_sharepoint_folder_from_JO = ""
 path_sharepoint_folder_from_NO = ""
-path_sharepoint_log_dump = ""
+path_sharepoint_folder_log_dump = ""
 auth_sharepoint = Office365(url_sharepoint, username = username_sharepoint, password = password_sharepoint) \
                   .GetCookies()
 folder_sharepoint_from_JO = Site(f"{url_sharepoint}/{site_sharepoint_from_JO}", version = Version.v365, 
@@ -55,8 +54,6 @@ folder_sharepoint_log_dump = Site(f"{url_sharepoint}/{site_sharepoint_log_dump}"
                              .Folder(path_sharepoint_folder_log_dump)
 files_sharepoint_from_JO = folder_sharepoint_from_JO.files
 files_sharepoint_from_NO = folder_sharepoint_from_NO.files
-# paths_from_JO = glob.glob("./ActiveCampaign/JO/*")
-# paths_from_NO = glob.glob("./ActiveCampaign/NO/*")
 
 # Init vars for collating unsubbed & bounced contacts
 url_bulk_import_contact = "https://hri618.api-us1.com/api/3/import/bulk_import"
